@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from timechain_arc.learner import TimechainLearner
 from timechain_arc.programs import evaluate
+from timechain_arc.chain import Chain
 from continual_arc.env import LearnerObservation, RequestDemos, Submit
 from continual_arc.tasks import Pair
 from continual_arc.env import DemosFeedback, SubmitFeedback
@@ -36,6 +37,14 @@ class ScriptedClient:
 
 
 class IsolationTests(unittest.TestCase):
+    def test_large_receipts_and_explicit_ring_citations_use_stdin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chain=Chain(Path(directory)/'timechain')
+            thought='Synthetic data receipt: '+json.dumps({'zeros':[0]*60000})
+            chain.seal(thought,'Synthetic transport integrity test',
+                dict(coherence=240,relevance=240,novelty=200,consistency=240,depth=220,covenant=255),[0])
+            self.assertIn('VERIFY: PASS',chain.run('timechain','verify'))
+
     def test_generated_policy_has_no_external_capabilities(self):
         obs={'input':[[1]]}
         for code in ('import os\ndef solve(g): return g',

@@ -19,8 +19,14 @@ class ProxyTests(unittest.TestCase):
                 captured.append(request)
                 data={'id':'synthetic-fixture','model':'synthetic/fixture','choices':[{'message':{'content':'{"fixture":true}'},'finish_reason':'stop'}],
                       'usage':{'prompt_tokens':10,'completion_tokens':3,'total_tokens':13,'cost':0}}
-                encoded=json.dumps(data).encode();self.send_response(200)
-                self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(encoded)));self.end_headers();self.wfile.write(encoded)
+                if request.get('stream'):
+                    chunks=[{'id':'synthetic-fixture','model':'synthetic/fixture','choices':[{'index':0,'delta':{'content':'{"fixture":true}'},'finish_reason':'stop'}]},
+                            {'id':'synthetic-fixture','model':'synthetic/fixture','choices':[],'usage':data['usage']}]
+                    encoded=(''.join('data: '+json.dumps(c)+'\n\n' for c in chunks)+'data: [DONE]\n\n').encode()
+                    content_type='text/event-stream'
+                else:encoded=json.dumps(data).encode();content_type='application/json'
+                self.send_response(200)
+                self.send_header('Content-Type',content_type);self.send_header('Content-Length',str(len(encoded)));self.end_headers();self.wfile.write(encoded)
             def log_message(self,*args):pass
         upstream=ThreadingHTTPServer(('127.0.0.1',0),Handler)
         thread=threading.Thread(target=upstream.serve_forever,daemon=True);thread.start()
@@ -31,12 +37,16 @@ class ProxyTests(unittest.TestCase):
             config={'model':'synthetic/fixture','effort':'medium','max_output_tokens':100,'model_timeout_seconds':30}
             client=ProxyClient(proxy.base_url,'arc-proxy',config)
             self.assertEqual({'fixture':True},client.complete([{'role':'user','content':'fixture request'}]))
+            self.assertEqual({},tracker.wait_ended(0,5))
             tracker.epoch += 1  # TrackedLearner.reset advances this official salt epoch.
             self.assertEqual({'fixture':True},client.complete([{'role':'user','content':'fixture request'}]))
+            self.assertEqual({},tracker.wait_ended(0,5))
             self.assertEqual(2,len(captured))
             self.assertNotEqual(captured[0]['messages'][0]['content'],captured[1]['messages'][0]['content'])
             self.assertEqual(2,tracker.usage.requests)
             self.assertEqual(0,tracker.usage.failed_requests)
+            self.assertEqual(20,tracker.usage.input_tokens)
+            self.assertEqual(6,tracker.usage.output_tokens)
         finally:
             proxy.stop();upstream.shutdown();upstream.server_close()
 

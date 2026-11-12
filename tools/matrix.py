@@ -73,6 +73,9 @@ def prepare(root,python,runtime):
 
 
 def execute(root,profile,cap,prices,pin,only_stage):
+    import fcntl
+    lease=(root/'.run.lock').open('a')
+    fcntl.flock(lease,fcntl.LOCK_EX|fcntl.LOCK_NB)
     plan=json.loads((root/'plan.json').read_text())
     if fingerprint()!=plan['source_sha256']:raise RuntimeError('Source changed after matrix freeze; prepare a new run')
     bridge=None
@@ -94,6 +97,7 @@ def execute(root,profile,cap,prices,pin,only_stage):
     # No silent upstream model/endpoint change, no unpaid model swap on quota.
     try:
         for stage in plan['stages']:
+            if fingerprint()!=plan['source_sha256']:raise RuntimeError('Source changed after matrix freeze')
             if only_stage and stage['id']!=only_stage:continue
             stamp=root/'completed'/stage['id']
             if stamp.exists():continue
@@ -105,14 +109,18 @@ def execute(root,profile,cap,prices,pin,only_stage):
                 attempt_dir=str(Attempt.create(stage['id'],root=root/'accounting').directory)
             env['WORKBENCH_RUN_DIR']=attempt_dir
             args=stage['argv']+common
+            if (Path(stage['out'])/'records.jsonl').exists() and '--resume' not in args:
+                args+=['--resume']
             print('START '+stage['id'],flush=True)
-            subprocess.run(args,env=env,check=True)
+            subprocess.run(args,env=env,check=True,pass_fds=[lease.fileno()])
+            if fingerprint()!=plan['source_sha256']:raise RuntimeError('Source changed during the stage; do not attest a fixed build')
             verify_complete(Path(stage['out']),stage['expected_records'])
             if stage['test_out']:verify_complete(Path(stage['test_out']),stage['expected_test_records'])
             stamp.parent.mkdir(exist_ok=True);stamp.write_text('Completed and record count verified\n')
             print('COMPLETE '+stage['id'],flush=True)
     finally:
         if bridge:bridge.close()
+        lease.close()
 
 
 def verify_complete(path,n):

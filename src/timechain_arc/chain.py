@@ -26,8 +26,11 @@ class Chain:
 
     def run(self, module, *args):
         env = dict(os.environ, PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1')
-        result = subprocess.run([sys.executable, str(SKILL / (module + '.py')), *map(str, args),
-                                '--root', str(self.root)], capture_output=True, text=True,
+        argv=[str(SKILL / (module + '.py')), *map(str,args), '--root', str(self.root)]
+        # Large programs and paid game traces exceed OS per-argument limits.
+        # Feed data over stdin, then invoke the unmodified skill entry point.
+        bootstrap='import json,runpy,sys; from pathlib import Path; sys.argv=json.load(sys.stdin); sys.path.insert(0,str(Path(sys.argv[0]).parent)); runpy.run_path(sys.argv[0],run_name="__main__")'
+        result = subprocess.run([sys.executable, '-I', '-c', bootstrap], input=json.dumps(argv), capture_output=True, text=True,
                                 encoding='utf8', env=env, timeout=120)
         if result.returncode:
             raise RuntimeError(f'Timechain {module} failed: {result.stderr[-1600:]} {result.stdout[-1600:]}')

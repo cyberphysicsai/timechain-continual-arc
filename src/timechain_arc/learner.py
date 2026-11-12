@@ -34,6 +34,16 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
+def event_preview(event):
+    event=copy.deepcopy(event)
+    feedback=event.get('feedback',{})
+    for field in ('pairs','demonstration'):
+        if field in feedback:
+            value=feedback.pop(field)
+            feedback[field+'_sha256']=digest(value)
+    return event
+
+
 class TimechainLearner(BaseLearner):
     concurrent_users = False
 
@@ -169,7 +179,8 @@ class TimechainLearner(BaseLearner):
     def _model(self, w, obs, route):
         if self.client is None:
             raise RuntimeError('A tracked model endpoint is required; no chat/manual fallback is allowed')
-        context = {'observation': as_json(obs), 'task_memory': w['task'],
+        context = {'observation': as_json(obs),
+                   'task_memory': {k:v for k,v in w['task'].items() if k not in ('program','demos')},
                    'current_program': w['program'], 'paid_demonstrations': w['demos'],
                    'instance_program_state': w['state'], 'tried_grids': w['tried'],
                    'computed_analysis': w['analysis'],
@@ -177,7 +188,7 @@ class TimechainLearner(BaseLearner):
                        'program_sha256': digest(value.get('program')), 'demonstrations': len(value.get('demos',[]))}
                        for key,value in self.memory['tasks'].items()],
                    'recalled_task_programs': w['recalled_tasks'],
-                   'recent_events': w['history'][-self.config['max_history_events']:],
+                   'recent_events': [event_preview(e) for e in w['history'][-self.config['max_history_events']:]],
                    'general_note': self.memory['general_note'], 'timechain_route': route}
         self.calls += 1
         w['calls'] += 1
@@ -259,7 +270,7 @@ class TimechainLearner(BaseLearner):
     def end_round(self):
         for (_, _, task_id), w in self.working.items():
             w['task'].update(program=w['program'], demos=w['demos'],program_rejected=w['program_blocked'])
-            w['task']['recent_outcomes'] = w['history'][-8:]
+            w['task']['recent_outcomes'] = [event_preview(e) for e in w['history'][-8:]]
             self.memory['tasks'][task_id] = w['task']
             if w['pending_general'] is not None:
                 self.memory['general_note'] = w['pending_general']

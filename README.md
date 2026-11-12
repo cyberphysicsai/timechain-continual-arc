@@ -65,6 +65,9 @@ The three-track matrix contains, per track:
 All model calls pass through the official accounting proxy. Model, provider route,
 budget, usage, failed calls and software identities must remain disclosed. The
 official checker must pass before any public result is presented as a submission.
+Long reasoning responses are streamed so token accounting and progress continue
+throughout generation. Large chain receipts pass over stdin rather than being
+limited by operating-system command-line sizes.
 
 ## Run preparation
 
