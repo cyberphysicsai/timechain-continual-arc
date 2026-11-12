@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timechain-continual-arc"
+version = "0.1.0"
+description = "Task-naive single-model Timechain learner for isolated Continual-ARC evaluation"
+requires-python = ">=3.12,<3.14"
+dependencies = ["continual-arc @ git+https://github.com/unifyai/continual-arc@7a21baaaed2f964f1deea13ea29906b949af0959"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+timechain_arc = ["config.json", "vendor/skill/*.py", "vendor/skill/*.md", "vendor/skill/registry/*.json", "vendor/PROVENANCE.json"]
