@@ -143,3 +143,10 @@ disables retries, requests standard service and no storage, and preserves
 streaming usage. Native usage does not report USD cost: this remains unknown in
 benchmark records; the ledger charges worst-case reservations rather than
 claiming zero cost. This profile is not organizer private verification.
+
+Response recovery stays inside the tracked learner loop. A response cut off by
+the token limit, an incomplete stream, or a missing JSON decision becomes explicit
+response-error feedback; it does not execute an action or discard paid examples.
+The next model request is a new accounted call. Authentication and quota errors
+still stop the run. Learner and bare-model calls use the same 128,000-token output
+ceiling; a 64-call per-instance guard charges an unresolved instance as failure.

@@ -21,7 +21,7 @@ class ProxyClient:
         request = urllib.request.Request(self.url, json.dumps(body).encode(),
                     {'Authorization': 'Bearer ' + self.key, 'Content-Type': 'application/json'})
         # No untracked retry, fallback endpoint, SDK state, or provider-side tool.
-        parts=[];done=False
+        parts=[];done=False;finish_reason=None
         with urllib.request.urlopen(request, timeout=self.config['model_timeout_seconds']) as response:
             for line in response:
                 line=line.decode('utf8').strip()
@@ -31,9 +31,18 @@ class ProxyClient:
                 item=json.loads(value)
                 if item.get('error'):raise RuntimeError('Tracked model stream failed: '+str(item['error'])[:1000])
                 for choice in item.get('choices',[]):
+                    finish_reason=choice.get('finish_reason') or finish_reason
                     content=choice.get('delta',{}).get('content')
                     if isinstance(content,str):parts.append(content)
-        if not done:raise RuntimeError('Model stream ended without its completion marker')
+        # These requests were still tracked. No environment action was taken,
+        # and the learner can retry while preserving its paid demonstrations.
+        if not done:
+            raise ValueError('Incomplete tracked model stream: no completion marker. No decision was executed. Retry with a compact JSON decision using the evidence already supplied.')
+        if finish_reason=='length':
+            raise ValueError('Model token limit exhausted before a complete decision. Use a concise JSON decision: an executable analyze helper or a demonstration request can replace prolonged manual search. Do not repeat the same search.')
         # Reasoning deltas remain in the official accounting journal; the learner
         # consumes the final JSON decision, not a hidden deliberation transcript.
-        return json.loads(''.join(parts))
+        try:
+            return json.loads(''.join(parts))
+        except json.JSONDecodeError as error:
+            raise ValueError('Model returned no complete JSON decision. Return one compact JSON object without markdown; use executable analysis or request more evidence if uncertain.') from error

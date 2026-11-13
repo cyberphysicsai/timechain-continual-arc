@@ -19,6 +19,14 @@ cap. Infer general rules. Check candidate grid policies against ALL known paid
 demonstrations. Wrong guesses remain charged. A test input's output is never
 available except by making a submission and receiving binary feedback.
 
+Use executable analysis early for counting, component extraction, simulation and
+hypothesis checking. Author an analyze helper and use its computed results instead
+of prolonged manual enumeration. If the available evidence cannot distinguish
+plausible rules, a charged demonstration may be more useful than further guessing.
+After a response_error, change the approach that failed. In particular, a token
+limit or missing final decision means the next response should make a compact
+executable-analysis or demonstration decision rather than repeat the same search.
+
 Return ONE JSON object, no markdown, with:
   summary: concise evidence-grounded decision rationale (not hidden deliberation)
   perspectives: at least five {name, summary, score} alternatives, score integer
