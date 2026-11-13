@@ -184,6 +184,7 @@ class TimechainLearner(BaseLearner):
                    'current_program': w['program'], 'paid_demonstrations': w['demos'],
                    'instance_program_state': w['state'], 'tried_grids': w['tried'],
                    'computed_analysis': w['analysis'],
+                   'program_blocked': w['program_blocked'],
                    'learned_task_index': [{'task_id': key, 'note': value.get('note',''),
                        'program_sha256': digest(value.get('program')), 'demonstrations': len(value.get('demos',[]))}
                        for key,value in self.memory['tasks'].items()],
@@ -226,6 +227,8 @@ class TimechainLearner(BaseLearner):
             return self._decode(reply['action'], obs)
         if w['program'] and not w['program_blocked']:
             return self._program(w, obs)
+        if not recalled:
+            raise ValueError('No executable action: the current program is absent or blocked. Supply a revised program or an explicit action; null keeps the blocked program.')
         return None
 
     def act(self, obs):

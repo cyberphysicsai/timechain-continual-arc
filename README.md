@@ -4,7 +4,7 @@ Single-model autonomous program learning with a Cypher Tempre Timechain,
 Cambium auto-sprout, and explicit Chronosynaptic perspective notes. No subagents,
 task solutions, task-specific policies, previous benchmark memory, or credentials
 ship with the learner. Its default published model is
-`deepseek/deepseek-v4.1-flash-1017`, reasoning effort `max`.
+`openai/gpt-6.1-sol`, reasoning effort `xhigh`.
 
 This is submission preparation, **not an organizer-verified result**. Earlier
 interactive results from the development chat are a separate experiment and must
@@ -134,3 +134,12 @@ Failed software pilots and synthetic tests are not benchmark scores.
 Sources: [Continual-ARC protocol](https://github.com/unifyai/continual-arc),
 [Cypher Tempre](https://github.com/cyberphysicsai/cypher-tempre-genesis),
 [OpenCode Go terms](https://opencode.ai/docs/console/go/).
+
+Native OpenAI public runs use `--profile openai-public`, a credential supplied
+over controller stdin, a positive `--spend-cap`, and `--prices` with conservative
+per-token bounds for the native model ID `gpt-6.1-sol`. The compatibility wrapper
+uses the official proxy constructor options to translate request fields. It
+disables retries, requests standard service and no storage, and preserves
+streaming usage. Native usage does not report USD cost: this remains unknown in
+benchmark records; the ledger charges worst-case reservations rather than
+claiming zero cost. This profile is not organizer private verification.
