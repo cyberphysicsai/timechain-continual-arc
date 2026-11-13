@@ -40,7 +40,11 @@ def prepare(root,python,runtime):
         schedule_dir=root/'schedules'/track;schedule_dir.mkdir(parents=True)
         stream=build_schedule(track,0,epilogue=False)
         stream.save(schedule_dir/'stream.json');stream.reset_each().save(schedule_dir/'reset-stream.json')
-        for test in ('seen','held-out'):test_schedule(track,0,test,width=1).save(schedule_dir/(test+'.json'))
+        for test in ('seen','held-out'):
+            test_schedule(track,0,test,width=1).save(schedule_dir/(test+'.json'))
+            # --test accepts its full one-round schedule, then the official CLI
+            # converts it to width 1 for a HostedLearner's frozen process resets.
+            test_schedule(track,0,test).save(schedule_dir/(test+'-full.json'))
         hosted={'python':str(python),'runtime':[str(runtime)],
                 'learner':'timechain_arc.learner:TimechainLearner','sandbox':'bwrap'}
         for role,schedule,test,resume in (
@@ -56,7 +60,7 @@ def prepare(root,python,runtime):
                   '--schedule',str(schedule_dir/(schedule+'.json')),'--out',str(out),
                   '--name','Timechain '+track+' '+role,'--events','--capture-content',
                   '--confine-models',CANONICAL+'=max','--llm-defaults',json.dumps({'reasoning':{'effort':'max'}})]
-            if test:args+=['--test',str(schedule_dir/(test+'.json')),'--test-out',str(root/'results'/track/('learner-'+test))]
+            if test:args+=['--test',str(schedule_dir/(test+'-full.json')),'--test-out',str(root/'results'/track/('learner-'+test))]
             if resume:args+=['--resume']
             stages.append({'id':track+'-'+role+('-'+test if test else ''),'argv':args,
                 'out':str(out),'attempt':str(root/'attempts'/track/role),
