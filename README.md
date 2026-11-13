@@ -4,7 +4,7 @@ Single-model autonomous program learning with a Cypher Tempre Timechain,
 Cambium auto-sprout, and explicit Chronosynaptic perspective notes. No subagents,
 task solutions, task-specific policies, previous benchmark memory, or credentials
 ship with the learner. Its default published model is
-`openai/gpt-6.1-sol`, reasoning effort `xhigh`.
+`deepseek/deepseek-v4.1-flash-1017`, reasoning effort `max`.
 
 This is submission preparation, **not an organizer-verified result**. Earlier
 interactive results from the development chat are a separate experiment and must

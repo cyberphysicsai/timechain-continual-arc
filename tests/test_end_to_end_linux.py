@@ -14,7 +14,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from strict_host import StrictHostedLearner
-from openai_cli import NativeOpenAIProxy
+from continual_arc_baselines.proxy import LLMProxy
+from unittest.mock import patch
+from go_bridge import GoBridge,CANONICAL,ALIAS
 from continual_arc.env import LearnerObservation, Submit, SubmitFeedback
 from continual_arc_baselines.tracking import Tracker
 
@@ -38,10 +40,11 @@ class InstalledLearnerTests(unittest.TestCase):
             def do_POST(self):
                 captured.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
                 chunks = [
-                    {'id': 'fixture', 'model': 'gpt-6.1-sol', 'choices': [
+                    {'id': 'fixture', 'model': ALIAS, 'choices': [
                         {'index': 0, 'delta': {'content': json.dumps(reply)}, 'finish_reason': 'stop'}]},
-                    {'id': 'fixture', 'model': 'gpt-6.1-sol', 'choices': [], 'usage': {
-                        'prompt_tokens': 10, 'completion_tokens': 3, 'total_tokens': 13}},
+                    {'id': 'fixture', 'model': ALIAS, 'choices': [], 'usage': {
+                        'prompt_tokens': 10, 'completion_tokens': 3, 'total_tokens': 13,
+                        'cost':0,'opencode':{'billing_source':'go-plus'}}},
                 ]
                 data = (''.join('data: ' + json.dumps(c) + '\n\n' for c in chunks)
                     + 'data: [DONE]\n\n').encode()
@@ -58,8 +61,12 @@ class InstalledLearnerTests(unittest.TestCase):
         thread = threading.Thread(target=upstream.serve_forever, daemon=True)
         thread.start()
         tracker = Tracker()
-        proxy = NativeOpenAIProxy('http://127.0.0.1:' + str(upstream.server_port),
-            tracker=tracker, confined_to={'openai/gpt-6.1-sol': 'xhigh'}).start()
+        scratch=tempfile.TemporaryDirectory(prefix='ct-go-receipts-')
+        target=patch('go_bridge.URL','http://127.0.0.1:'+str(upstream.server_port)+'/chat/completions')
+        target.start()
+        bridge=GoBridge('synthetic-controller-key',Path(scratch.name)/'provider.jsonl')
+        proxy = LLMProxy(bridge.start(),tracker=tracker,
+            confined_to={CANONICAL:'max'},upstream_retries=0).start()
         try:
             with tempfile.TemporaryDirectory(prefix='ct-real-learner-') as temp:
                 # No checkout or developer state is mounted. Import the wheel
@@ -110,14 +117,17 @@ class InstalledLearnerTests(unittest.TestCase):
                     self.assertEqual(2, tracker.usage.requests)
                     self.assertEqual(20, tracker.usage.input_tokens)
                     self.assertEqual(6, tracker.usage.output_tokens)
-                    self.assertEqual(2, tracker.usage.unpriced_requests)
-                    self.assertEqual('gpt-6.1-sol', captured[0]['model'])
-                    self.assertEqual('xhigh', captured[0]['reasoning_effort'])
+                    self.assertEqual(0, tracker.usage.unpriced_requests)
+                    self.assertEqual(ALIAS, captured[0]['model'])
+                    self.assertEqual('max', captured[0]['reasoning_effort'])
                     self.assertNotIn('provider', captured[0])
                 finally:
                     host.close()
         finally:
             proxy.stop()
+            bridge.close()
+            target.stop()
+            scratch.cleanup()
             upstream.shutdown()
             upstream.server_close()
 

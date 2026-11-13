@@ -12,6 +12,7 @@ from timechain_arc.learner import TimechainLearner
 
 
 class GPTProfileTests(unittest.TestCase):
+    @unittest.skipUnless(TimechainLearner().config['model']=='openai/gpt-6.1-sol', 'Native GPT profile is inactive in a DeepSeek release')
     def test_native_translation_keeps_stream_usage_and_does_not_invent_costs(self):
         proxy=NativeOpenAIProxy('http://127.0.0.1:9',
             confined_to={'openai/gpt-6.1-sol':'xhigh'})

@@ -1,6 +1,6 @@
 {
-  "model": "openai/gpt-6.1-sol",
-  "effort": "xhigh",
+  "model": "deepseek/deepseek-v4.1-flash-1017",
+  "effort": "max",
   "max_output_tokens": 65536,
   "max_model_calls_per_instance": 4096,
   "policy_timeout_seconds": 10,
