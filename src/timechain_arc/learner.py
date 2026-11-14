@@ -198,7 +198,13 @@ class TimechainLearner(BaseLearner):
         self._check_code()
         if not isinstance(reply, dict):
             raise ValueError('Expected an object')
-        allowed = {r['ring'] for r in route.get('evidence', {}).get('recalled', [])}
+        evidence = route.get('evidence', {})
+        allowed = {r['ring'] for r in evidence.get('recalled', [])}
+        # REPLAY supplies its evidence as an antecedent, rather than a recalled
+        # list. It is actually present in the model context and is citable too.
+        antecedent = evidence.get('antecedent')
+        if isinstance(antecedent, dict) and type(antecedent.get('ring')) is int:
+            allowed.add(antecedent['ring'])
         used = reply.get('used_rings', [])
         if any(type(r) is not int or r not in allowed for r in used):
             raise ValueError('Claimed ring was not supplied as evidence')

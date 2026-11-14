@@ -30,6 +30,12 @@ Policy execution and observed feedback have separately labelled mechanical
 receipts. Perspective scores and PoQ scores are model judgments, not calibrated
 probabilities or independent experimental measurements.
 
+Evidence validation accepts only integer ring IDs actually supplied in the model
+context, including both recalled results and a REPLAY antecedent. Version 0.1.1
+fixes an earlier validator that omitted the antecedent and incorrectly rejected
+valid citations. The affected development trial is preserved and excluded; a
+corrected canonical run starts from fresh state, with no imported task memory.
+
 The model may buy demonstrations, submit grids, act in games, and author Python
 programs from the supplied observations. Grid programs are checked against every
 retained paid demonstration. Generated programs run in bounded subprocesses with

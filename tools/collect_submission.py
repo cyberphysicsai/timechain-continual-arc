@@ -20,7 +20,7 @@ def main():
     if missing:raise SystemExit('Incomplete matrix stages; no submission manifest written: '+', '.join(missing))
     for track in ('arc1','arc2','arc3'):
         base=root/'results'/track
-        manifest={'name':'Timechain Continual-ARC 0.1.0','learner':'Task-naive Timechain program learner, Cambium on',
+        manifest={'name':'Timechain Continual-ARC 0.1.1','learner':'Task-naive Timechain program learner, Cambium on',
                   'student':plan['model'],'effort':plan['effort'],'teacher':None,
                   'code':args.code_url,'contact':args.contact,'reset':str(base/'reset-stream'),
                   'tests':{test:{'run':str(base/('learner-'+test)),
