@@ -156,3 +156,35 @@ response-error feedback; it does not execute an action or discard paid examples.
 The next model request is a new accounted call. Authentication and quota errors
 still stop the run. Learner and bare-model calls use the same 128,000-token output
 ceiling; a 64-call per-instance guard charges an unresolved instance as failure.
+
+Version 0.1.2 also supplies the model with the remaining time in its current
+`act()` call. A 3,000-second cooperative model/analysis budget leaves margin
+inside the unchanged official host's 3,600-second call timeout. Analyze-only
+replies share that budget. Individual requests have an absolute 1,800-second
+limit and bounded 120-second I/O inactivity; incoming chunks, including reasoning
+and incomplete lines, do not refresh the total deadline. When no action is ready
+before the budget expires, the learner returns the SDK's `GiveUp`, in any track.
+The SDK charges its full failure budget and can continue to the next instance.
+`action_budget_exhaustions` is reported alongside the other resource counters.
+
+The public Go adapter closes a provider receipt even for a failed or cancelled
+request. Missing final usage is explicitly marked incomplete; reported token and
+cash totals must not be presented as exact totals for those requests. It also
+checks a 2 GiB storage reserve on the trial and source volumes before issuing new
+inference. A low-space stop records a controller event and makes no upstream call.
+
+The earlier 0.1.1 trial stopped partway through a frozen test after an analysis
+loop reached the host deadline. Its completed prefix and incident evidence are
+preserved as an incomplete development trial. No task state from that trial is
+an input to a 0.1.2 controlled run. Synthetic deadline tests exercise continuous
+streams, inactive sockets, cancellation accounting, and continuation after a
+full-cost failure; they are not benchmark results.
+
+The controller audits every frozen restore before the learner starts. It hashes
+both writable trees (`state` and `home`), including file bytes, topology, modes,
+owners, modification times, symlink targets and readable extended attributes.
+The receipts contain digests and counts, without file contents or path lists.
+Each frozen instance must bind to a new matching restore. Fresh reset references
+must bind to a new process after removal of both writable trees. The audit log
+and stage labels stay outside the learner sandbox. Access times, inode identity
+and creation times are excluded from the digest.

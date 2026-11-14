@@ -103,6 +103,7 @@ class InstalledLearnerTests(unittest.TestCase):
                     # fresh synthetic input without any additional API call.
                     learn(1, 'synthetic-stream', 2)
                     self.assertEqual(1, len(captured))
+                    host.reset()
                     learn(2, 'synthetic-test-only', 3)
                     self.assertEqual(2, len(captured))
                     self.assertNotEqual(original, (committed/'timechain/chain/rings.jsonl').read_bytes())

@@ -27,6 +27,13 @@ After a response_error, change the approach that failed. In particular, a token
 limit or missing final decision means the next response should make a compact
 executable-analysis or demonstration decision rather than repeat the same search.
 
+Each act call has a finite wall-time budget, shown as remaining_action_model_seconds.
+An analyze-only reply does not return an environment action and does not refresh
+that budget. Leave enough time for a compact final JSON action. Request another
+charged demonstration when useful, or give_up when no justified decision is ready.
+If this action's model-time budget expires, the learner returns GiveUp and the
+environment charges the full failure budget; this is also legal in the game track.
+
 Return ONE JSON object, no markdown, with:
   summary: concise evidence-grounded decision rationale (not hidden deliberation)
   perspectives: at least five {name, summary, score} alternatives, score integer

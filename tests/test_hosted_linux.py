@@ -18,6 +18,8 @@ class HostedIsolationTests(unittest.TestCase):
         package=Path(__file__).resolve().parents[1]
         runtime=Path(sys.base_prefix)
         previous=os.environ.get('OPENROUTER_API_KEY')
+        previous_stage=os.environ.get('CT_CONTROLLER_STAGE_ID')
+        os.environ['CT_CONTROLLER_STAGE_ID']='synthetic-controller-stage'
         os.environ['OPENROUTER_API_KEY']='outer-synthetic-secret'
         with tempfile.TemporaryDirectory(prefix='ct-official-host-') as temp:
             work=Path(temp)/'system';work.mkdir()
@@ -39,6 +41,7 @@ class HostedIsolationTests(unittest.TestCase):
                 self.assertEqual(1,before['task_count'])
                 self.assertEqual(0,before['outside_marker_readable'])
                 self.assertEqual(0,before['real_credential_exposed'])
+                self.assertEqual(0,before['controller_stage_exposed'])
                 host.reset()
                 self.assertNotEqual(before_host_pid,host._proc.pid)
                 self.assertEqual(0,host.resources()['task_count'])
@@ -59,10 +62,20 @@ class HostedIsolationTests(unittest.TestCase):
                 self.assertEqual(original,(host.state_dir/'learner/committed/timechain/chain/rings.jsonl').read_bytes())
                 self.assertEqual(original,(host.frozen/'state/learner/committed/timechain/chain/rings.jsonl').read_bytes())
                 self.assertNotIn('synthetic-test-only',(host.state_dir/'learner/committed/memory.json').read_text())
+                events=[json.loads(s) for s in (work/'reset-audit.jsonl').read_text().splitlines()]
+                restores=[r for r in events if r['event']=='frozen_restore']
+                self.assertEqual(2,len(restores))
+                self.assertTrue(all(r['matched'] and not r['learner_process_running'] for r in restores))
+                self.assertTrue(all(r['controller_stage']=='synthetic-controller-stage' for r in events))
+                bindings=[r for r in events if r['event']=='instance_begin']
+                self.assertEqual(1,len(bindings))
+                self.assertEqual(restores[0]['restore_id'],bindings[0]['restore_id'])
             finally:
                 host.close()
                 if previous is None:os.environ.pop('OPENROUTER_API_KEY',None)
                 else:os.environ['OPENROUTER_API_KEY']=previous
+                if previous_stage is None:os.environ.pop('CT_CONTROLLER_STAGE_ID',None)
+                else:os.environ['CT_CONTROLLER_STAGE_ID']=previous_stage
 
 
 if __name__=='__main__':unittest.main()

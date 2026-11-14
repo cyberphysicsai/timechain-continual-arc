@@ -14,8 +14,8 @@ class CitedClient(ScriptedClient):
         super().__init__()
         self.rings = rings
 
-    def complete(self, messages):
-        reply = super().complete(messages)
+    def complete(self, messages, **kwargs):
+        reply = super().complete(messages, **kwargs)
         reply['used_rings'] = self.rings
         return reply
 

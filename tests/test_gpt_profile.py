@@ -38,8 +38,8 @@ class GPTProfileTests(unittest.TestCase):
         learner=TimechainLearner();learner.chain=Mock();learner._check_code=Mock()
         learner.client=ScriptedClient()
         original=learner.client.complete
-        def blocked(messages):
-            reply=original(messages);reply['program']=None
+        def blocked(messages, **kwargs):
+            reply=original(messages, **kwargs);reply['program']=None
             return reply
         learner.client.complete=blocked
         obs=observation();w=learner._working(obs)

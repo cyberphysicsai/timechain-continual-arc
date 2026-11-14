@@ -55,7 +55,8 @@ def prepare(root,python,runtime):
             bare=role.startswith('bare-')
             args=[sys.executable,'-m','continual_arc_baselines','run','--learner',
                   'continual_arc_baselines.systems.bare:BareModelLearner' if bare else 'strict_host:StrictHostedLearner',
-                  '--learner-kwargs',json.dumps({'model':model,'max_tokens':config['max_output_tokens']} if bare else hosted),
+                  '--learner-kwargs',json.dumps({'model':model,'max_tokens':config['max_output_tokens']} if bare
+                                               else dict(hosted,reset_reference=role.startswith('reset-'))),
                   '--schedule',str(schedule_dir/(schedule+'.json')),'--out',str(out),
                   '--name','Timechain '+track+' '+role,'--events','--capture-content',
                   '--confine-models',model+'='+effort,'--llm-defaults',json.dumps({'reasoning':{'effort':effort}})]
@@ -121,6 +122,7 @@ def execute(root,profile,cap,prices,pin,only_stage):
             else:
                 attempt_dir=str(Attempt.create(stage['id'],root=root/'accounting').directory)
             env['WORKBENCH_RUN_DIR']=attempt_dir
+            env['CT_CONTROLLER_STAGE_ID']=stage['id']
             args=stage['argv']+common
             if profile=='openai-public':
                 args=list(args);args[2]='openai_cli'

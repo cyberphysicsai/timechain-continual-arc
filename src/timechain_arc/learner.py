@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import shutil
+import time
 from pathlib import Path
 
 from continual_arc.learner import BaseLearner
@@ -15,7 +16,7 @@ from continual_arc.arc3.instances import Act
 from .chain import Chain, DIMENSIONS
 from .programs import evaluate
 from .prompt import SYSTEM
-from .transport import ProxyClient
+from .transport import ActionBudgetExpired, ProxyClient
 
 
 def as_json(value):
@@ -55,6 +56,7 @@ class TimechainLearner(BaseLearner):
         self.memory = {'tasks': {}, 'general_note': ''}
         self.working = {}
         self.calls = self.policy_calls = self.policy_errors = 0
+        self.action_budget_exhaustions = 0
         self.code_sha256 = None
 
     def _code_hashes(self):
@@ -135,7 +137,7 @@ class TimechainLearner(BaseLearner):
             if obs.demo_requests_used >= obs.demo_cap:
                 raise ValueError('No demonstrations remain')
             return RequestDemos()
-        if kind == 'give_up' and not game:
+        if kind == 'give_up':
             return GiveUp()
         if kind == 'reset' and game:
             return ResetLevel()
@@ -176,7 +178,7 @@ class TimechainLearner(BaseLearner):
             self.policy_errors += 1
             return None
 
-    def _model(self, w, obs, route):
+    def _model(self, w, obs, route, *, deadline=None):
         if self.client is None:
             raise RuntimeError('A tracked model endpoint is required; no chat/manual fallback is allowed')
         context = {'observation': as_json(obs),
@@ -190,11 +192,13 @@ class TimechainLearner(BaseLearner):
                        for key,value in self.memory['tasks'].items()],
                    'recalled_task_programs': w['recalled_tasks'],
                    'recent_events': [event_preview(e) for e in w['history'][-self.config['max_history_events']:]],
-                   'general_note': self.memory['general_note'], 'timechain_route': route}
+                   'general_note': self.memory['general_note'], 'timechain_route': route,
+                   'remaining_action_model_seconds': None if deadline is None else
+                       round(max(0.0, deadline - time.monotonic()), 3)}
         self.calls += 1
         w['calls'] += 1
         reply = self.client.complete([{'role': 'system', 'content': SYSTEM},
-                                     {'role': 'user', 'content': json.dumps(context)}])
+                                     {'role': 'user', 'content': json.dumps(context)}], deadline=deadline)
         self._check_code()
         if not isinstance(reply, dict):
             raise ValueError('Expected an object')
@@ -238,6 +242,7 @@ class TimechainLearner(BaseLearner):
         return None
 
     def act(self, obs):
+        deadline = time.monotonic() + self.config['action_model_budget_seconds']
         if self.chain is None:
             raise RuntimeError('Learner was not attached')
         self._check_code()
@@ -245,13 +250,22 @@ class TimechainLearner(BaseLearner):
         route = self.chain.route('Determine a grounded action for task ' + obs.task_id)
         action = self._program(w, obs) if w['program'] and not w['program_blocked'] else None
         while action is None and w['calls'] < self.config['max_model_calls_per_instance']:
+            if time.monotonic() >= deadline:
+                self.action_budget_exhaustions += 1
+                self.chain.receipt({'event': 'action_model_budget_exhausted', 'task': obs.task_id})
+                break
             try:
-                action = self._model(w, obs, route)
+                action = self._model(w, obs, route, deadline=deadline)
+            except ActionBudgetExpired:
+                self.action_budget_exhaustions += 1
+                self.chain.receipt({'event': 'action_model_budget_exhausted', 'task': obs.task_id})
+                break
             except (ValueError, KeyError, TypeError) as error:
                 w['history'].append({'response_error': str(error)[:1000]})
                 self.chain.receipt({'event': 'model_response_rejected', 'error': str(error)[:1000]})
         if action is None:
-            # A runaway guard, never a free action. Runner charges full failure.
+            # Both grid and game environments score GiveUp as a full failure.
+            # A bounded case must not abort all the later instances and controls.
             action = GiveUp()
         self.chain.receipt({'event': 'action', 'task': obs.task_id,
                             'observation_sha256': digest(as_json(obs)), 'action': as_json(action)})
@@ -301,11 +315,14 @@ class TimechainLearner(BaseLearner):
     def resources(self):
         return {'model_decisions': self.calls, 'policy_executions': self.policy_calls,
                 'policy_errors': self.policy_errors,
+                'action_budget_exhaustions': self.action_budget_exhaustions,
                 'task_memory_bytes': len(json.dumps(self.memory))}
 
     def describe(self):
         return {'method': 'Single-model task-naive Timechain program learner',
                 'model': self.config['model'], 'reasoning_effort': self.config['effort'],
+                'action_model_budget_seconds': self.config['action_model_budget_seconds'],
+                'model_request_timeout_seconds': self.config['model_timeout_seconds'],
                 'cambium': True, 'subagents': False, 'task_artifacts_preloaded': False}
 
     def close(self):

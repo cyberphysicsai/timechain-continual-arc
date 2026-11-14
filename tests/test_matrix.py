@@ -22,6 +22,9 @@ class MatrixTests(unittest.TestCase):
             matrix.prepare(root,Path(sys.executable),Path(sys.base_prefix))
             plan=json.loads((root/'plan.json').read_text())
             for stage in plan['stages']:
+                kwargs=json.loads(stage['argv'][stage['argv'].index('--learner-kwargs')+1])
+                if 'reset_reference' in kwargs:
+                    self.assertEqual('-reset-' in stage['id'],kwargs['reset_reference'])
                 if stage['test_out']:
                     path=stage['argv'][stage['argv'].index('--test')+1]
                     accepted=load_test(path)

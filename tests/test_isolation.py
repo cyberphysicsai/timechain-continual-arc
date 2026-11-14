@@ -26,7 +26,7 @@ class ScriptedClient:
     """Not a model; deterministic protocol-fixture response."""
     def __init__(self):
         self.contexts=[]
-    def complete(self,messages):
+    def complete(self,messages,**kwargs):
         context=json.loads(messages[-1]['content']);self.contexts.append(context)
         return {'summary':'Synthetic fixture: reuse an identity mapping after a purchased example.',
                 'perspectives':[{'name':'Fixture '+str(i),'summary':'Synthetic schema test, not a measured hypothesis.','score':240-i} for i in range(5)],

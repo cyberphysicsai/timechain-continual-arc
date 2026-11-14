@@ -46,11 +46,11 @@ class RecoveryTests(unittest.TestCase):
     def test_learner_retry_retains_paid_evidence_and_records_rejection(self):
         class InterruptedOnce(ScriptedClient):
             def __init__(self):super().__init__();self.failed=False
-            def complete(self,messages):
+            def complete(self,messages,**kwargs):
                 if not self.failed:
                     self.failed=True
                     raise ValueError('Incomplete tracked model stream: fixture')
-                return super().complete(messages)
+                return super().complete(messages,**kwargs)
         with tempfile.TemporaryDirectory() as directory:
             learner=TimechainLearner();learner.attach(Path(directory),{});learner.begin_round(1)
             client=InterruptedOnce();learner.client=client
